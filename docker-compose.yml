@@ -1,0 +1,19 @@
+version: '3'
+
+services:
+  consensual_http:
+    build:
+      context: .
+      args:
+        - IMAGE_NAME=${IMAGE_NAME}
+        - IMAGE_VERSION=${IMAGE_VERSION}
+    image: lycantropos/consensual_http:0.0.0
+    volumes:
+      - ./consensual_http:/opt/consensual_http/consensual_http
+      - ./pytest.ini:/opt/consensual_http/pytest.ini
+      - ./README.md:/opt/consensual_http/README.md
+      - ./requirements-tests.txt:/opt/consensual_http/requirements-tests.txt
+      - ./requirements.txt:/opt/consensual_http/requirements.txt
+      - ./setup.py:/opt/consensual_http/setup.py
+      - ./tests:/opt/consensual_http/tests
+    entrypoint: pytest
