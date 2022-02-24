@@ -12,6 +12,7 @@ from reprit.base import generate_repr as _generate_repr
 from yarl import URL as _URL
 
 from .sender import Sender
+from .consts import HTTP_METHOD
 
 
 class Receiver(_Receiver):
@@ -46,8 +47,7 @@ class Receiver(_Receiver):
         app.middlewares.append(error_middleware)
         app.router.add_delete('/', self._handle_delete)
         app.router.add_post('/', self._handle_post)
-        app.router.add_route(Sender.HTTP_METHOD, '/',
-                             self._handle_communication)
+        app.router.add_route(HTTP_METHOD, '/', self._handle_communication)
         for action in _node.processors.keys():
             route = app.router.add_post(f'/{action}', self._handle_record)
             resource = route.resource

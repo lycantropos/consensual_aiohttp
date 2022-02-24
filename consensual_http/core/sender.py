@@ -7,7 +7,6 @@ from typing import (Any,
 
 from aiohttp import (ClientError,
                      ClientSession,
-                     hdrs,
                      web_ws)
 from consensual.raft import (MessageKind,
                              ReceiverUnavailable,
@@ -21,10 +20,6 @@ from .result import (Error,
 
 
 class Sender(BaseSender):
-    HTTP_METHOD = hdrs.METH_PATCH
-    assert (HTTP_METHOD is not hdrs.METH_POST
-            and HTTP_METHOD is not hdrs.METH_DELETE)
-
     def __init__(self,
                  *,
                  heartbeat: Union[int, float],
