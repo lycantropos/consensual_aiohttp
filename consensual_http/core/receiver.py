@@ -20,12 +20,17 @@ class Receiver(_Receiver):
 
     def __new__(cls, _node: _Node) -> 'Receiver':
         if not isinstance(_node.sender, Sender):
-            raise TypeError('node supposed to have compatible sender type, '
+            raise TypeError(f'node supposed to have sender of type {Sender}, '
                             f'but found {type(_node.sender)}')
         self = super().__new__(cls)
         self._node = _node
         self._is_running = False
         app = self._app = _web.Application()
+
+        async def close_sender_session(_: _web.Application) -> None:
+            await _node.sender._session.close()
+
+        app.on_shutdown.append(close_sender_session)
 
         @_web.middleware
         async def error_middleware(
@@ -68,8 +73,7 @@ class Receiver(_Receiver):
                      host=url.host,
                      port=url.port,
                      loop=self._node.loop,
-                     print=lambda message: (self._set_running(True)
-                                            or print(message)))
+                     print=lambda message: self._set_running(True))
 
     def stop(self) -> None:
         if self._is_running:
