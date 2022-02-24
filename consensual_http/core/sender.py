@@ -31,8 +31,7 @@ class Sender(BaseSender):
                  urls: Collection[URL]) -> None:
         self._heartbeat, self._urls = heartbeat, urls
         self._loop = get_event_loop()
-        self._messages: Dict[URL, Queue] = {receiver: Queue()
-                                            for receiver in self._urls}
+        self._messages: Dict[URL, Queue] = {url: Queue() for url in self._urls}
         self._results = {url: {kind: Queue() for kind in MessageKind}
                          for url in self._urls}
         self._session = ClientSession(loop=self._loop)
@@ -58,8 +57,7 @@ class Sender(BaseSender):
         for added_url in new_urls - old_urls:
             self._connect(added_url)
 
-    async def send(self, *, kind: MessageKind, message: Any, url: URL
-                   ) -> Any:
+    async def send(self, *, kind: MessageKind, message: Any, url: URL) -> Any:
         assert kind in MessageKind, kind
         try:
             messages = self._messages[url]
