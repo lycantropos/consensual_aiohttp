@@ -49,7 +49,8 @@ plain_paths_letters = strategies.characters(
         whitelist_categories=['Ll', 'Lu', 'Nd', 'Nl', 'No']
 )
 paths_infixes_letters = plain_paths_letters | strategies.sampled_from(
-        string.whitespace + '!"#$&\'()*+,-./:;<=>?@[\\]^_`|~')
+        string.whitespace + '!"#$&\'()*+,-./:;<=>?@[\\]^_`|~'
+)
 paths_infixes = strategies.text(paths_infixes_letters,
                                 min_size=1)
 

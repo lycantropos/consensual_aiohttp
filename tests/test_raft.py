@@ -1,14 +1,10 @@
-from collections import deque
-from concurrent.futures import ThreadPoolExecutor
-from functools import partial
-from typing import (Dict,
+from typing import (Any,
+                    Dict,
                     Iterable,
-                    Iterator,
                     List,
                     Sequence,
                     Tuple)
 
-from consensual.core.raft.role import RoleKind
 from consensual.raft import Processor
 from hypothesis.stateful import (Bundle,
                                  RuleBasedStateMachine,
@@ -20,16 +16,14 @@ from hypothesis.strategies import DataObject
 
 from . import strategies
 from .raft_cluster_node import RaftClusterNode
-from .utils import (MAX_RUNNING_NODES_COUNT,
-                    implication,
-                    transpose)
+from .utils import MAX_RUNNING_NODES_COUNT
 
 
 class RaftNetwork(RuleBasedStateMachine):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
-        self._executor = ThreadPoolExecutor()
-        self._nodes: List[RaftClusterNode] = []
+        self.active_nodes: List[RaftClusterNode] = []
+        self.deactivated_nodes: List[RaftClusterNode] = []
 
     running_nodes = Bundle('running_nodes')
     shutdown_nodes = Bundle('shutdown_nodes')
@@ -39,19 +33,12 @@ class RaftNetwork(RuleBasedStateMachine):
     def add_nodes(self,
                   target_node: RaftClusterNode,
                   source_node: RaftClusterNode) -> None:
-        error = target_node.add(source_node)
-        assert implication(
-                error is None,
-                target_node.old_node_state.leader_node_id is not None
-                and (source_node.old_node_state.id
-                     not in target_node.old_cluster_state.nodes_ids)
-                and implication(target_node.old_node_state.role_kind
-                                is RoleKind.LEADER,
-                                target_node.old_cluster_state.stable)
-        )
+        error = target_node.attach(source_node)
+        assert is_valid_error_message(error)
 
     def is_not_full(self) -> bool:
-        return len(self._nodes) < MAX_RUNNING_NODES_COUNT
+        return (len(self.active_nodes) + len(self.deactivated_nodes)
+                < MAX_RUNNING_NODES_COUNT)
 
     @precondition(is_not_full)
     @rule(target=running_nodes,
@@ -62,89 +49,44 @@ class RaftNetwork(RuleBasedStateMachine):
                      nodes_parameters: List[Tuple[str, Sequence[int],
                                                   Dict[str, Processor], int]]
                      ) -> Iterable[RaftClusterNode]:
-        max_new_nodes_count = MAX_RUNNING_NODES_COUNT - len(self._nodes)
+        max_new_nodes_count = (MAX_RUNNING_NODES_COUNT
+                               - (len(self.active_nodes)
+                                  + len(self.deactivated_nodes)))
         nodes_parameters = nodes_parameters[:max_new_nodes_count]
-        nodes = list(self._executor.map(
-                partial(RaftClusterNode.running_from_one_of_ports,
-                        heartbeat=heartbeat),
-                *transpose(nodes_parameters)))
-        self._nodes.extend(nodes)
+        nodes = [RaftClusterNode.running_from_one_of_ports(*node_parameters,
+                                                           heartbeat=heartbeat)
+                 for node_parameters in nodes_parameters]
+        self.active_nodes.extend(nodes)
         return multiple(*nodes)
 
     @rule(node=running_nodes)
-    def delete_nodes(self, node: RaftClusterNode) -> None:
-        error = node.delete()
-        assert (
-                implication(
-                        error is None,
-                        len(node.old_cluster_state.nodes_ids) == 1
-                        or (node.old_node_state.leader_node_id is not None
-                            and implication(node.old_node_state.role_kind
-                                            is RoleKind.LEADER,
-                                            node.old_cluster_state.stable))
-                )
-                and implication((node.old_cluster_state.nodes_ids
-                                 == [node.old_node_state.id])
-                                or ((node.old_node_state.role_kind
-                                     is RoleKind.LEADER)
-                                    and node.old_cluster_state.stable),
-                                error is None)
-        )
+    def detach_node(self, node: RaftClusterNode) -> None:
+        error = node.detach()
+        assert is_valid_error_message(error)
 
     @rule(source_node=running_nodes,
           target_node=running_nodes)
-    def delete_many_nodes(self,
-                          source_node: RaftClusterNode,
-                          target_node: RaftClusterNode) -> None:
-        error = target_node.delete(source_node)
-        assert (implication(
-                error is None,
-                (source_node.old_node_state.id
-                 == target_node.old_node_state.id)
-                if len(target_node.old_cluster_state.nodes_ids) == 1
-                else
-                (target_node.old_node_state.leader_node_id is not None
-                 and implication(target_node.old_node_state.role_kind
-                                 is RoleKind.LEADER,
-                                 target_node.old_cluster_state.stable)
-                 and (source_node.new_node_state.id
-                      in target_node.old_cluster_state.nodes_ids)))
-                and implication(
-                        (source_node.old_node_state.id
-                         == target_node.old_node_state.id)
-                        if (target_node.old_cluster_state.nodes_ids
-                            == [target_node.old_node_state.id])
-                        else
-                        ((target_node.old_node_state.role_kind
-                          is RoleKind.LEADER)
-                         and target_node.old_cluster_state.stable
-                         and (source_node.new_node_state.id
-                              in target_node.old_cluster_state.nodes_ids)),
-                        error is None
-                )
-                )
+    def detach_nodes(self,
+                     source_node: RaftClusterNode,
+                     target_node: RaftClusterNode) -> None:
+        error_message = target_node.detach_node(source_node)
+        assert is_valid_error_message(error_message)
 
     @rule(data=strategies.data_objects,
           node=running_nodes)
     def log(self, data: DataObject, node: RaftClusterNode) -> None:
         arguments = data.draw(strategies.to_log_arguments_lists(node))
-        if not arguments:
-            return
-        errors = list(self._executor.map(node.log, arguments))
-        assert all(implication(error is None,
-                               node.old_node_state.leader_node_id is not None
-                               and (node.old_node_state.id
-                                    in node.old_cluster_state.nodes_ids))
-                   and implication(node.old_node_state.role_kind
-                                   is RoleKind.LEADER,
-                                   error is None)
-                   for error in errors)
+        assert all(is_valid_error_message(node.log(action, parameters))
+                   for action, parameters in arguments)
 
     @rule(target=running_nodes,
           node=consumes(shutdown_nodes))
     def restart_node(self, node: RaftClusterNode) -> RaftClusterNode:
         if node.restart():
-            self._nodes += [node]
+            self.active_nodes.append(node)
+            self.deactivated_nodes = [candidate
+                                      for candidate in self.deactivated_nodes
+                                      if candidate is not node]
             return node
         return multiple()
 
@@ -152,33 +94,27 @@ class RaftNetwork(RuleBasedStateMachine):
           node=consumes(running_nodes))
     def shutdown_node(self, node: RaftClusterNode) -> RaftClusterNode:
         node.stop()
-        self._nodes = [candidate
-                       for candidate in self._nodes
-                       if candidate is not node]
+        self.active_nodes = [candidate
+                             for candidate in self.active_nodes
+                             if candidate is not node]
+        self.deactivated_nodes.append(node)
         return node
 
     @rule(node=running_nodes)
     def solo_node(self, node: RaftClusterNode) -> None:
-        error = node.solo()
-        assert error is None
-        assert (
-                node.new_cluster_state.id
-                and node.new_node_state.id in node.new_cluster_state.nodes_ids
-                and len(node.new_cluster_state.nodes_ids) == 1
-                and node.new_node_state.role_kind is RoleKind.LEADER
-        )
+        error_message = node.solo()
+        assert error_message is None
 
     def is_not_empty(self) -> bool:
-        return bool(self._nodes)
+        return bool(self.active_nodes)
 
     def teardown(self) -> None:
-        _exhaust(self._executor.map(RaftClusterNode.stop, self._nodes))
-        self._executor.shutdown()
+        for node in self.active_nodes:
+            node.stop()
 
 
-def _exhaust(iterator: Iterator) -> None:
-    deque(iterator,
-          maxlen=0)
+def is_valid_error_message(error: Any) -> bool:
+    return error is None or isinstance(error, str)
 
 
 TestCluster = RaftNetwork.TestCase
