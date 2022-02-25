@@ -167,7 +167,7 @@ def to_logger(name: str,
     }
     handlers = {'stdout': stdout_handler_config,
                 'stderr': stderr_handler_config}
-    loggers = {name: {'level': logging.DEBUG,
+    loggers = {name: {'level': logging.INFO,
                       'handlers': ('stderr', 'stdout')}}
     config = {'formatters': formatters,
               'handlers': handlers,
