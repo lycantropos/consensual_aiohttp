@@ -12,7 +12,7 @@ from consensual.raft import Processor
 from hypothesis import strategies
 from hypothesis.strategies import SearchStrategy
 
-from .raft_cluster_node import RaftClusterNode
+from .raft_node import RaftNode
 from .utils import MAX_RUNNING_NODES_COUNT
 
 data_objects = strategies.data()
@@ -87,7 +87,7 @@ def to_log_arguments(action_with_processor: Tuple[str, Processor]
                              processors_parameters[processor])
 
 
-def to_log_arguments_lists(node: RaftClusterNode
+def to_log_arguments_lists(node: RaftNode
                            ) -> SearchStrategy[List[Tuple[str, Any]]]:
     return strategies.lists(
             (strategies.sampled_from(list(node.processors.items()))

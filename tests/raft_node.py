@@ -19,7 +19,7 @@ from yarl import URL
 from consensual_http import communication
 
 
-class RaftClusterNode:
+class RaftNode:
     def __init__(self,
                  url: URL,
                  processors: Dict[str, Processor],
@@ -43,7 +43,7 @@ class RaftClusterNode:
                                   processors: Dict[str, Processor],
                                   random_seed: int,
                                   *,
-                                  heartbeat: float) -> 'RaftClusterNode':
+                                  heartbeat: float) -> 'RaftNode':
         candidates = list(ports)
         generate_index = Random(random_seed).randrange
         while candidates:
@@ -60,7 +60,7 @@ class RaftClusterNode:
             raise RuntimeError(f'all ports from {ports} are occupied')
         return self
 
-    def attach(self, node: 'RaftClusterNode', *rest: 'RaftClusterNode'
+    def attach(self, node: 'RaftNode', *rest: 'RaftNode'
                ) -> Optional[str]:
         response = requests.post(self._url_string,
                                  json=[str(node.url)
@@ -73,7 +73,7 @@ class RaftClusterNode:
         response.raise_for_status()
         return response.json()['error']
 
-    def detach_node(self, node: 'RaftClusterNode') -> Optional[str]:
+    def detach_node(self, node: 'RaftNode') -> Optional[str]:
         response = requests.delete(self._url_string,
                                    json=[str(node.url)])
         response.raise_for_status()

@@ -15,15 +15,15 @@ from hypothesis.stateful import (Bundle,
 from hypothesis.strategies import DataObject
 
 from . import strategies
-from .raft_cluster_node import RaftClusterNode
+from .raft_node import RaftNode
 from .utils import MAX_RUNNING_NODES_COUNT
 
 
 class RaftNetwork(RuleBasedStateMachine):
     def __init__(self) -> None:
         super().__init__()
-        self.active_nodes: List[RaftClusterNode] = []
-        self.deactivated_nodes: List[RaftClusterNode] = []
+        self.active_nodes: List[RaftNode] = []
+        self.deactivated_nodes: List[RaftNode] = []
 
     running_nodes = Bundle('running_nodes')
     shutdown_nodes = Bundle('shutdown_nodes')
@@ -31,8 +31,8 @@ class RaftNetwork(RuleBasedStateMachine):
     @rule(source_node=running_nodes,
           target_node=running_nodes)
     def add_nodes(self,
-                  target_node: RaftClusterNode,
-                  source_node: RaftClusterNode) -> None:
+                  target_node: RaftNode,
+                  source_node: RaftNode) -> None:
         error = target_node.attach(source_node)
         assert is_valid_error_message(error)
 
@@ -48,40 +48,40 @@ class RaftNetwork(RuleBasedStateMachine):
                      heartbeat: float,
                      nodes_parameters: List[Tuple[str, Sequence[int],
                                                   Dict[str, Processor], int]]
-                     ) -> Iterable[RaftClusterNode]:
+                     ) -> Iterable[RaftNode]:
         max_new_nodes_count = (MAX_RUNNING_NODES_COUNT
                                - (len(self.active_nodes)
                                   + len(self.deactivated_nodes)))
         nodes_parameters = nodes_parameters[:max_new_nodes_count]
-        nodes = [RaftClusterNode.running_from_one_of_ports(*node_parameters,
-                                                           heartbeat=heartbeat)
+        nodes = [RaftNode.running_from_one_of_ports(*node_parameters,
+                                                    heartbeat=heartbeat)
                  for node_parameters in nodes_parameters]
         self.active_nodes.extend(nodes)
         return multiple(*nodes)
 
     @rule(node=running_nodes)
-    def detach_node(self, node: RaftClusterNode) -> None:
+    def detach_node(self, node: RaftNode) -> None:
         error = node.detach()
         assert is_valid_error_message(error)
 
     @rule(source_node=running_nodes,
           target_node=running_nodes)
     def detach_nodes(self,
-                     source_node: RaftClusterNode,
-                     target_node: RaftClusterNode) -> None:
+                     source_node: RaftNode,
+                     target_node: RaftNode) -> None:
         error_message = target_node.detach_node(source_node)
         assert is_valid_error_message(error_message)
 
     @rule(data=strategies.data_objects,
           node=running_nodes)
-    def log(self, data: DataObject, node: RaftClusterNode) -> None:
+    def log(self, data: DataObject, node: RaftNode) -> None:
         arguments = data.draw(strategies.to_log_arguments_lists(node))
         assert all(is_valid_error_message(node.log(action, parameters))
                    for action, parameters in arguments)
 
     @rule(target=running_nodes,
           node=consumes(shutdown_nodes))
-    def restart_node(self, node: RaftClusterNode) -> RaftClusterNode:
+    def restart_node(self, node: RaftNode) -> RaftNode:
         if node.restart():
             self.active_nodes.append(node)
             self.deactivated_nodes = [candidate
@@ -92,7 +92,7 @@ class RaftNetwork(RuleBasedStateMachine):
 
     @rule(target=shutdown_nodes,
           node=consumes(running_nodes))
-    def shutdown_node(self, node: RaftClusterNode) -> RaftClusterNode:
+    def shutdown_node(self, node: RaftNode) -> RaftNode:
         node.stop()
         self.active_nodes = [candidate
                              for candidate in self.active_nodes
@@ -101,7 +101,7 @@ class RaftNetwork(RuleBasedStateMachine):
         return node
 
     @rule(node=running_nodes)
-    def solo_node(self, node: RaftClusterNode) -> None:
+    def solo_node(self, node: RaftNode) -> None:
         error_message = node.solo()
         assert error_message is None
 
@@ -113,8 +113,8 @@ class RaftNetwork(RuleBasedStateMachine):
             node.stop()
 
 
-def is_valid_error_message(error: Any) -> bool:
-    return error is None or isinstance(error, str)
+def is_valid_error_message(error_message: Any) -> bool:
+    return error_message is None or isinstance(error_message, str)
 
 
 TestCluster = RaftNetwork.TestCase
