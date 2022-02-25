@@ -1,11 +1,9 @@
-from collections import (Counter,
-                         defaultdict,
-                         deque)
+from collections import deque
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
-from operator import eq
 from typing import (Dict,
-                    Iterable, Iterator,
+                    Iterable,
+                    Iterator,
                     List,
                     Sequence,
                     Tuple)
@@ -15,15 +13,13 @@ from consensual.raft import Processor
 from hypothesis.stateful import (Bundle,
                                  RuleBasedStateMachine,
                                  consumes,
-                                 invariant,
                                  multiple,
                                  precondition,
                                  rule)
 from hypothesis.strategies import DataObject
 
 from . import strategies
-from .raft_cluster_node import (RaftClusterNode,
-                                is_resetted_node)
+from .raft_cluster_node import RaftClusterNode
 from .utils import (MAX_RUNNING_NODES_COUNT,
                     implication,
                     transpose)

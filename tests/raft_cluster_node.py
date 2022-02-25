@@ -237,13 +237,6 @@ class FilterRecordsWithGreaterLevel:
         return record.levelno < self.max_level
 
 
-def is_resetted_node(node: RaftClusterNode) -> bool:
-    return (not node.old_cluster_state.id
-            and not node.new_cluster_state.id
-            and not node.new_node_state.log
-            and node.new_node_state.term == 0)
-
-
 def run_node(url: URL,
              processors: Dict[str, Processor],
              heartbeat: float,
@@ -257,7 +250,8 @@ def run_node(url: URL,
                          logger=to_logger(url.authority),
                          processors=processors,
                          sender=sender)
-    receiver = communication.Receiver(node)
+    receiver = communication.Receiver(node,
+                                      on_run=event.set)
     receiver._app.router.add_get('/states', to_states_handler(node))
     receiver._app.middlewares.append(
             to_latency_simulator(max_delay=(heartbeat
@@ -265,12 +259,7 @@ def run_node(url: URL,
                                  random_seed=random_seed)
     )
     receiver._app.middlewares.append(to_states_appender(node))
-    url = node.url
-    web.run_app(receiver._app,
-                host=url.host,
-                port=url.port,
-                loop=node._loop,
-                print=lambda message: event.set() or print(message))
+    receiver.start()
 
 
 def to_logger(name: str,
@@ -309,7 +298,7 @@ def to_logger(name: str,
     return logging.getLogger(name)
 
 
-Handler = Callable[[web.Request], Awaitable[web.StreamResponse]]
+Handler = Callable[[web.Request], Awaitable[web.Response]]
 Middleware = Callable[[web.Request, Handler], Awaitable[web.StreamResponse]]
 
 
@@ -338,7 +327,7 @@ def to_states_appender(node: Node) -> Middleware:
         if request.method not in (hdrs.METH_DELETE, hdrs.METH_POST):
             return await handler(request)
         states_before = to_raw_states(node)
-        result: web.Response = await handler(request)
+        result = await handler(request)
         return (web.json_response({'states': {'after': to_raw_states(node),
                                               'before': states_before},
                                    'result': json.loads(result.text)})
