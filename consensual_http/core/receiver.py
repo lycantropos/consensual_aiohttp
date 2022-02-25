@@ -1,5 +1,7 @@
 import json
+import os
 import signal
+import sys
 from typing import (Awaitable,
                     Callable)
 
@@ -88,12 +90,20 @@ class Receiver(BaseReceiver):
                     print=lambda message: (self._set_running(True)
                                            or self.on_run()))
 
-    def stop(self) -> None:
-        if self._is_running:
-            try:
-                signal.raise_signal(signal.SIGINT)
-            finally:
-                self._set_running(False)
+    if sys.version_info >= (3, 8):
+        def stop(self) -> None:
+            if self._is_running:
+                try:
+                    signal.raise_signal(signal.SIGINT)
+                finally:
+                    self._set_running(False)
+    else:
+        def stop(self) -> None:
+            if self._is_running:
+                try:
+                    os.kill(os.getpid(), signal.SIGINT)
+                finally:
+                    self._set_running(False)
 
     async def _handle_communication(self, request: web.Request
                                     ) -> web_ws.WebSocketResponse:
