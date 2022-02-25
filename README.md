@@ -1,7 +1,7 @@
 consensual_http
 ===============
 
-[![](https://dev.azure.com/lycantropos/consensual_http/_apis/build/status/lycantropos.consensual_http?branchName=master)](https://dev.azure.com/lycantropos/consensual_http/_build/latest?branchName=master "Azure Pipelines")
+[![](https://dev.azure.com/lycantropos/consensual_http/_apis/build/status/lycantropos.consensual_http?branchName=master)](https://dev.azure.com/lycantropos/consensual_http/_build/latest?definitionId=41&branchName=master "Azure Pipelines")
 [![](https://codecov.io/gh/lycantropos/consensual_http/branch/master/graph/badge.svg)](https://codecov.io/gh/lycantropos/consensual_http "Codecov")
 [![](https://img.shields.io/github/license/lycantropos/consensual_http.svg)](https://github.com/lycantropos/consensual_http/blob/master/LICENSE "License")
 [![](https://badge.fury.io/py/consensual-http.svg)](https://badge.fury.io/py/consensual-http "PyPI")
