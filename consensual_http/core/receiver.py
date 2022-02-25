@@ -15,15 +15,23 @@ from .consts import HTTP_METHOD
 from .sender import Sender
 
 
+def no_op() -> None:
+    return
+
+
 class Receiver(BaseReceiver):
     __slots__ = '_app', '_is_running', '_node', '_on_run'
 
-    def __new__(cls, _node: Node) -> 'Receiver':
+    def __new__(cls,
+                _node: Node,
+                *,
+                on_run: Callable[[], None] = no_op) -> 'Receiver':
         if not isinstance(_node.sender, Sender):
             raise TypeError(f'node supposed to have sender of type {Sender}, '
                             f'but found {type(_node.sender)}')
         self = super().__new__(cls)
         self._node = _node
+        self._on_run = on_run
         self._is_running = False
         app = self._app = web.Application()
 
@@ -65,6 +73,10 @@ class Receiver(BaseReceiver):
     def is_running(self) -> bool:
         return self._is_running
 
+    @property
+    def on_run(self) -> Callable[[], None]:
+        return self._on_run
+
     def start(self) -> None:
         if self.is_running:
             raise RuntimeError('Already running')
@@ -73,7 +85,8 @@ class Receiver(BaseReceiver):
                     host=url.host,
                     port=url.port,
                     loop=self._node.loop,
-                    print=lambda message: self._set_running(True))
+                    print=lambda message: (self._set_running(True)
+                                           or self.on_run()))
 
     def stop(self) -> None:
         if self._is_running:
