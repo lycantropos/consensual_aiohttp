@@ -42,6 +42,58 @@ Install
 python setup.py install
 ```
 
+Usage
+-----
+
+```python
+>>> from consensual.raft import Node
+>>> from consensual_http import communication
+>>> from yarl import URL
+>>> node_url = URL.build(scheme='http',
+...                      host='localhost',
+...                      port=6000)
+>>> heartbeat = 0.1
+>>> from typing import Any
+>>> processed_parameters = []
+>>> def dummy_processor(parameters: Any) -> None:
+...     processed_parameters.append(parameters)
+>>> def stop(parameters: Any = None) -> None:
+...     receiver.stop()
+>>> processors = {'dummy': dummy_processor, 'stop': stop}
+>>> sender = communication.Sender(heartbeat=heartbeat,
+...                               urls=[node_url])
+>>> from asyncio import Event, get_event_loop
+>>> loop = get_event_loop()
+>>> node = Node.from_url(node_url,
+...                      heartbeat=heartbeat,
+...                      loop=loop,
+...                      processors=processors,
+...                      sender=sender)
+>>> node_is_running = Event()
+>>> receiver = communication.Receiver(node,
+...                                   on_run=node_is_running.set)
+>>> from aiohttp.client import ClientSession
+>>> def validate_response(response: Any) -> None:
+...     assert isinstance(response, dict)
+...     assert response.keys() == {'error'}
+...     assert response['error'] is None
+>>> async def run() -> None:
+...     await node_is_running.wait()
+...     async with ClientSession(node.url) as session:
+...         validate_response(await (await session.post('/')).json())
+...         validate_response(await (await session.post('/dummy',
+...                                                     json=42)).json())
+...         validate_response(await (await session.delete('/',
+...                                                       json=[str(node.url)])).json())
+...         validate_response(await (await session.delete('/')).json())
+...     stop(None)
+>>> _ = loop.create_task(run())
+>>> receiver.start()
+>>> all(parameters == 42 for parameters in processed_parameters)
+True
+
+```
+
 Development
 -----------
 
