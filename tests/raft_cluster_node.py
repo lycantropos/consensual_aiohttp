@@ -66,29 +66,29 @@ class RaftClusterNode:
                                  json=[str(node.url)
                                        for node in [node, *rest]])
         response.raise_for_status()
-        return response.json()['result']['error']
+        return response.json()['error']
 
     def detach(self) -> Optional[str]:
         response = requests.delete(self._url_string)
         response.raise_for_status()
-        return response.json()['result']['error']
+        return response.json()['error']
 
     def detach_node(self, node: 'RaftClusterNode') -> Optional[str]:
         response = requests.delete(self._url_string,
                                    json=[str(node.url)])
         response.raise_for_status()
-        return response.json()['result']['error']
+        return response.json()['error']
 
     def log(self, action: str, parameters: Any) -> Optional[str]:
         response = requests.post(str(self.url.with_path(action)),
                                  json=parameters)
         response.raise_for_status()
-        return response.json()['result']['error']
+        return response.json()['error']
 
     def solo(self) -> Optional[str]:
         response = requests.post(self._url_string)
         response.raise_for_status()
-        return response.json()['result']['error']
+        return response.json()['error']
 
     def restart(self) -> bool:
         assert self._process is None
