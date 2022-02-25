@@ -79,14 +79,16 @@ Usage
 ...     assert response['error'] is None
 >>> async def run() -> None:
 ...     await node_is_running.wait()
-...     async with ClientSession(node.url) as session:
-...         validate_response(await (await session.post('/')).json())
-...         validate_response(await (await session.post('/dummy',
-...                                                     json=42)).json())
-...         validate_response(await (await session.delete('/',
-...                                                       json=[str(node.url)])).json())
-...         validate_response(await (await session.delete('/')).json())
-...     stop(None)
+...     try:
+...         async with ClientSession(node.url) as session:
+...             validate_response(await (await session.post('/')).json())
+...             validate_response(await (await session.post('/dummy',
+...                                                         json=42)).json())
+...             validate_response(await (await session.delete('/',
+...                                                           json=[str(node.url)])).json())
+...             validate_response(await (await session.delete('/')).json())
+...     finally:
+...         stop(None)
 >>> _ = loop.create_task(run())
 >>> receiver.start()
 >>> all(parameters == 42 for parameters in processed_parameters)
