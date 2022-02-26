@@ -7,7 +7,7 @@ services:
       args:
         - IMAGE_NAME=${IMAGE_NAME}
         - IMAGE_VERSION=${IMAGE_VERSION}
-    image: lycantropos/consensual_http:0.1.0-alpha
+    image: lycantropos/consensual_http:0.1.0
     volumes:
       - ./consensual_http:/opt/consensual_http/consensual_http
       - ./pytest.ini:/opt/consensual_http/pytest.ini
