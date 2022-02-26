@@ -87,7 +87,9 @@ steps:
     displayName: 'Install dependencies'
   - bash: python -m pip install --upgrade coverage codecov
     displayName: 'Install coverage dependencies'
-  - bash: coverage run -m doctest README.md || python -c "import sys; exit(sys.version_info < (3, 8))"
+  - bash:
+      coverage run -m doctest README.md
+      || python -c "import sys; exit(not (sys.platform == 'win32' and sys.version_info < (3, 8)))"
     displayName: 'Run doctests'
   - bash: python -m pip install -r requirements-tests.txt
     displayName: 'Install tests dependencies'
