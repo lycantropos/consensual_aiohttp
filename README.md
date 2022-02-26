@@ -86,8 +86,8 @@ Usage
 ...         validate_response(await (await session.delete('/',
 ...                                                       json=[str(node.url)])).json())
 ...         validate_response(await (await session.delete('/')).json())
+...     stop(None)
 >>> _ = loop.create_task(run())
->>> _ = loop.call_later(5, stop, None)
 >>> receiver.start()
 >>> all(parameters == 42 for parameters in processed_parameters)
 True
